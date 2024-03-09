@@ -4,6 +4,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from app import db
 from app.models import Facility, Classroom, Teacher, Child
 from datetime import timedelta
+from sqlalchemy.exc import IntegrityError
 
 bp = Blueprint('api', __name__)
 jwt = JWTManager()
@@ -30,39 +31,64 @@ def add_facility():
 @bp.route('/facility', methods=['GET'])
 @jwt_required()
 def get_facilities():
-    facilities = Facility.query.all()
-    return jsonify([{'id': f.id, 'name': f.name} for f in facilities]), 200
+    try:
+        facilities = Facility.query.all()
+        if not facilities:
+            return jsonify({'error': 'No Facilities found'}), 404
+        return jsonify([{'id': f.id, 'name': f.name} for f in facilities]), 200
+    except NoResultFound:
+        return jsonify({'error': 'No Facilities found'}), 404
 
 @bp.route('/classroom', methods=['POST'])
 @jwt_required()
 def add_classroom():
     data = request.json
     new_classroom = Classroom(name=data['name'], capacity=data['capacity'], facility_id=data['facility_id'])
-    db.session.add(new_classroom)
-    db.session.commit()
-    return jsonify({'message': 'Classroom added successfully'}), 201
+    try:
+        db.session.add(new_classroom)
+        db.session.commit()
+        return jsonify({'message': 'Classroom added successfully'}), 201
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Invalid Facility Provided'}), 500
 
 @bp.route('/classroom', methods=['GET'])
 @jwt_required()
 def get_classrooms():
-    classrooms = Classroom.query.all()
-    return jsonify([{'id': c.id, 'name': c.name, 'capacity': c.capacity, 'facility_id': c.facility_id} for c in classrooms]), 200
+    try:
+        classrooms = Classroom.query.all()
+        if not classrooms:
+            return jsonify({'error': 'No Classroom found'}), 404
+        return jsonify([{'id': c.id, 'name': c.name, 'capacity': c.capacity, 'facility_id': c.facility_id} for c in classrooms]), 200
+    except NoResultFound:
+        return jsonify({'error': 'No Classroom found'}), 404
 
 @bp.route('/teacher', methods=['POST'])
 @jwt_required()
 def add_teacher():
     data = request.json
     new_teacher = Teacher(firstname=data['firstname'], lastname=data['lastname'], room_id=data['room_id'])
-    db.session.add(new_teacher)
-    db.session.commit()
-    return jsonify({'message': 'Teacher added successfully'}), 201
+    try:
+        db.session.add(new_teacher)
+        db.session.commit()
+        return jsonify({'message': 'Teacher added successfully'}), 201
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Invalid Classroom Provided'}), 500
+
 
 @bp.route('/teacher', methods=['GET'])
 @jwt_required()
 def get_teachers():
-    teachers = Teacher.query.all()
-    return jsonify([{'id': t.id, 'firstname': t.firstname, 'lastname': t.lastname, 'room_id': t.room_id} for t in teachers]), 200
-
+    try:
+        teachers = Teacher.query.all()
+        if not teachers:
+            return jsonify({'error': 'No Teachers found'}), 404
+        return jsonify([{'id': t.id, 'firstname': t.firstname, 'lastname': t.lastname, 'room_id': t.room_id} for t in teachers]), 200
+    except NoResultFound:
+        return jsonify({'error': 'No Teachers found'}), 404
+    
+    
 @bp.route('/child', methods=['POST'])
 @jwt_required()
 def add_child():
@@ -77,17 +103,26 @@ def add_child():
     
     if current_children_count < min(classroom.capacity, max_children_allowed):
         new_child = Child(firstname=data['firstname'], lastname=data['lastname'], age=data['age'], room_id=room_id)
-        db.session.add(new_child)
-        db.session.commit()
-        return jsonify({'message': 'Child added successfully'}), 201
+        try:
+            db.session.add(new_child)
+            db.session.commit()
+            return jsonify({'message': 'Child added successfully'}), 201
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({'error': 'Invalid Classroom Provided'}), 500        
     else:
         return jsonify({'message': 'Adding child failed. Exceeds maximum children allowed for current teachers.'}), 400
 
 @bp.route('/child', methods=['GET'])
 @jwt_required()
 def get_children():
-    children = Child.query.all()
-    return jsonify([{'id': ch.id, 'firstname': ch.firstname, 'lastname': ch.lastname, 'age': ch.age, 'room_id': ch.room_id} for ch in children]), 200
+    try:
+        children = Child.query.all()
+        if not children:
+            return jsonify({'error': 'No Children found'}), 404
+        return jsonify([{'id': ch.id, 'firstname': ch.firstname, 'lastname': ch.lastname, 'age': ch.age, 'room_id': ch.room_id} for ch in children]), 200
+    except NoResultFound:
+        return jsonify({'error': 'No Children found'}), 404
 
 @bp.route('/facility/<int:id>', methods=['PUT'])
 @jwt_required()
@@ -163,7 +198,3 @@ def delete_child(id):
     db.session.delete(child)
     db.session.commit()
     return jsonify({'message': 'Child deleted successfully'}), 200
-
-# Initialize JWT with the Flask app somewhere in your application setup
-# app.config['JWT_SECRET_KEY'] = 'super-secret'  # Change this!
-# jwt.init_app(app)
