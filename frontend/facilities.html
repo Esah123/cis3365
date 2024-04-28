@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facilities Management</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <a href="main.html" class="back-button">Back to Main Menu</a>
+        <h2>Facilities Management</h2>
+        <button onclick="showAddFacilityModal()">Add New Facility</button>
+        <div id="facilitiesList"></div>
+    </div>
+
+    <!-- Add Facility Modal -->
+    <div id="addFacilityModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideAddFacilityModal()">&times;</span>
+            <h3>Add New Facility</h3>
+            <input type="text" id="facilityName" placeholder="Facility Name">
+            <button onclick="addFacility()">Add Facility</button>
+        </div>
+    </div>
+
+    <!-- Edit Facility Modal -->
+    <div id="editFacilityModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideEditFacilityModal()">&times;</span>
+            <h3>Edit Facility</h3>
+            <input type="hidden" id="editFacilityId">
+            <input type="text" id="editFacilityName" placeholder="Facility Name">
+            <button onclick="editFacility()">Save Changes</button>
+        </div>
+    </div>
+
+    <script>
+        // Fetch and display facilities on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchFacilities();
+        });
+    
+        async function fetchFacilities() {
+            try {
+                const response = await fetch('/api/facility', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to fetch facilities');
+                }
+                const facilities = await response.json();
+                displayFacilities(facilities);
+            } catch (error) {
+                console.error('Error fetching facilities:', error);
+                alert('Error fetching facilities. Please check console for details.');
+            }
+        }
+    
+        function displayFacilities(facilities) {
+            const container = document.getElementById('facilitiesList');
+            container.innerHTML = ''; // Clear existing facilities
+    
+            facilities.forEach(facility => {
+                const facilityElement = document.createElement('div');
+                facilityElement.innerHTML = `
+                    <h3>${facility.id}. ${facility.name}</h3>
+                    <button onclick="deleteFacility('${facility.id}')">Delete</button>
+                    <button onclick="showEditFacilityModal('${facility.id}', '${facility.name}')">Edit</button>
+                `;
+                container.appendChild(facilityElement);
+            });
+        }
+    
+        async function addFacility() {
+            const name = document.getElementById('facilityName').value;
+            try {
+                const response = await fetch('/api/facility', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    },
+                    body: JSON.stringify({ name })
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to add facility');
+                }
+                fetchFacilities(); // Refresh the list of facilities
+                document.getElementById('addFacilityModal').style.display = 'none'; // Hide the add modal
+            } catch (error) {
+                console.error('Error adding facility:', error);
+                alert('Error adding facility. Please check console for details.');
+            }
+        }
+    
+        async function deleteFacility(id) {
+            try {
+                const response = await fetch(`/api/facility/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to delete facility');
+                }
+                fetchFacilities(); // Refresh the list of facilities
+            } catch (error) {
+                console.error('Error deleting facility:', error);
+                alert('Error deleting facility. Please check console for details.');
+            }
+        }
+    
+        function showEditFacilityModal(id, name) {
+            // Populate the edit modal fields with facility details
+            document.getElementById('editFacilityId').value = id;
+            document.getElementById('editFacilityName').value = name;
+    
+            // Show the edit modal
+            document.getElementById('editFacilityModal').style.display = 'block';
+        }
+    
+        async function editFacility() {
+            const id = document.getElementById('editFacilityId').value;
+            const name = document.getElementById('editFacilityName').value;
+            try {
+                const response = await fetch(`/api/facility/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Add your authorization header here
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    },
+                    body: JSON.stringify({ name })
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to update facility');
+                }
+                fetchFacilities(); // Refresh the list of facilities
+                document.getElementById('editFacilityModal').style.display = 'none'; // Hide the edit modal
+            } catch (error) {
+                console.error('Error updating facility:', error);
+                alert('Error updating facility. Please check console for details.');
+            }
+        }
+    
+        // Example stubs for modal display toggles
+        function showAddFacilityModal() {
+            document.getElementById('addFacilityModal').style.display = 'block';
+        }
+    
+        function hideAddFacilityModal() {
+            document.getElementById('addFacilityModal').style.display = 'none';
+        }
+
+        // Additional functions to show/hide modals
+        function showAddFacilityModal() {
+            document.getElementById('addFacilityModal').style.display = 'block';
+        }
+
+        function hideAddFacilityModal() {
+            document.getElementById('addFacilityModal').style.display = 'none';
+        }
+
+        function showEditFacilityModal(id, name) {
+            document.getElementById('editFacilityId').value = id;
+            document.getElementById('editFacilityName').value = name;
+            document.getElementById('editFacilityModal').style.display = 'block';
+        }
+
+        function hideEditFacilityModal() {
+            document.getElementById('editFacilityModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

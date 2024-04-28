@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        // Redirect to login page if not logged in
+        window.onload = function() {
+            const token = sessionStorage.getItem('sessionToken');
+            if (!token) {
+                window.location.href = 'index.html'; // Adjust as needed
+            }
+        };
+
+        // Logout function
+        function logout() {
+            sessionStorage.removeItem('sessionToken');
+            window.location.href = 'index.html'; // Adjust as needed
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h2>Esah's Daycare Center</h2>
+        <div>
+            <button onclick="window.location.href='facilities.html';">Manage Facilities</button>
+            <button onclick="window.location.href='classrooms.html';">Manage Classrooms</button>
+            <button onclick="window.location.href='teachers.html';">Manage Teachers</button>
+            <button onclick="window.location.href='children.html';">Manage Children</button>
+        </div>
+        <button onclick="logout()" style="margin-top: 20px;">Logout</button>
+    </div>
+</body>
+</html>

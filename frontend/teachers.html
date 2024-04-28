@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Management</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <a href="main.html" class="back-button">Back to Main Menu</a>
+        <h2>Teacher Management</h2>
+        <button onclick="showAddTeacherModal()">Add New Teacher</button>
+        <div id="teacherList"></div>
+    </div>
+
+<!-- Add Teacher Modal -->
+<div id="addTeacherModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="hideAddTeacherModal()">&times;</span>
+        <h3>Add New Teacher</h3>
+        <select id="classroomSelector"></select>
+        <input type="text" id="teacherFirstName" placeholder="First Name">
+        <input type="text" id="teacherLastName" placeholder="Last Name">
+        <button onclick="addTeacher()">Add Teacher</button>
+    </div>
+</div>
+
+<!-- Edit Teacher Modal -->
+<div id="editTeacherModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="hideEditTeacherModal()">&times;</span>
+        <h3>Edit Teacher</h3>
+        <input type="hidden" id="editTeacherId">
+        <select id="editClassroomSelector"></select>
+        <input type="text" id="editTeacherFirstName" placeholder="First Name">
+        <input type="text" id="editTeacherLastName" placeholder="Last Name">
+        <button onclick="editTeacher()">Save Changes</button>
+    </div>
+</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!sessionStorage.getItem('sessionToken')) {
+                window.location.href = 'index.html'; // Redirect to login if no token found
+            } else {
+                fetchClassrooms();
+            }
+        });
+
+        async function fetchClassrooms() {
+            try {
+                const response = await fetch('/api/classroom', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    }
+                });
+                if (!response.ok) throw new Error('Failed to fetch classrooms');
+                const classrooms = await response.json();
+                populateClassroomSelectors(classrooms);
+                fetchTeachers();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function populateClassroomSelectors(classrooms) {
+            const classroomSelector = document.getElementById('classroomSelector');
+            const editClassroomSelector = document.getElementById('editClassroomSelector');
+            classrooms.forEach(classroom => {
+                const option = new Option(classroom.name, classroom.id);
+                classroomSelector.appendChild(option.cloneNode(true));
+                editClassroomSelector.appendChild(option.cloneNode(true));
+            });
+        }
+
+        async function fetchTeachers() {
+            try {
+                const response = await fetch('/api/teacher', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    }
+                });
+                if (!response.ok) throw new Error('Failed to fetch teachers');
+                const teachers = await response.json();
+                displayTeachers(teachers);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function displayTeachers(teachers) {
+            const list = document.getElementById('teacherList');
+            list.innerHTML = '';
+            teachers.forEach(teacher => {
+                const classroomOption = document.querySelector(`#classroomSelector option[value="${teacher.room_id}"]`);
+                const classroomName = classroomOption ? classroomOption.text : 'Unknown Classroom';
+                const item = document.createElement('div');
+                item.innerHTML = `
+                    <span>${teacher.firstname} ${teacher.lastname} (Classroom: ${classroomName})</span>
+                    <button onclick="deleteTeacher('${teacher.id}')">Delete</button>
+                    <button onclick="showEditTeacherModal('${teacher.id}', '${teacher.room_id}', '${teacher.firstname}', '${teacher.lastname}')">Edit</button>`;
+                list.appendChild(item);
+            });
+        }
+        
+        async function addTeacher() {
+            const firstName = document.getElementById('teacherFirstName').value;
+            const lastName = document.getElementById('teacherLastName').value;
+            const roomId = document.getElementById('classroomSelector').value;
+            try {
+                const response = await fetch('/api/teacher', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    },
+                    body: JSON.stringify({ firstname: firstName, lastname: lastName, room_id: roomId })
+                });
+                if (!response.ok) throw new Error('Failed to add teacher');
+                fetchTeachers();
+                hideAddTeacherModal();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function editTeacher() {
+            const id = document.getElementById('editTeacherId').value;
+            const firstName = document.getElementById('editTeacherFirstName').value;
+            const lastName = document.getElementById('editTeacherLastName').value;
+            const roomId = document.getElementById('editClassroomSelector').value;
+            try {
+                const response = await fetch(`/api/teacher/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    },
+                    body: JSON.stringify({ firstname: firstName, lastname: lastName, room_id: roomId })
+                });
+                if (!response.ok) throw new Error('Failed to update teacher');
+                fetchTeachers();
+                hideEditTeacherModal();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+
+        async function deleteTeacher(id) {
+            try {
+                await fetch(`/api/teacher/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    }
+                });
+                fetchTeachers();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function showAddTeacherModal() {
+            document.getElementById('addTeacherModal').style.display = 'block';
+        }
+
+        function hideAddTeacherModal() {
+            document.getElementById('addTeacherModal').style.display = 'none';
+            // Reset inputs for firstname and lastname
+            document.getElementById('teacherFirstName').value = '';
+            document.getElementById('teacherLastName').value = '';
+        }
+
+        function showEditTeacherModal(id, roomId, firstname, lastname) {
+            document.getElementById('editTeacherId').value = id;
+            document.getElementById('editClassroomSelector').value = roomId;
+            // Update to populate firstname and lastname in the edit modal
+            document.getElementById('editTeacherFirstName').value = firstname;
+            document.getElementById('editTeacherLastName').value = lastname;
+            document.getElementById('editTeacherModal').style.display = 'block';
+        }
+
+        function hideEditTeacherModal() {
+            document.getElementById('editTeacherModal').style.display = 'none';
+        }
+
+    </script>
+</body>
+</html>

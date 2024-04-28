@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Child Management</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <a href="main.html" class="back-button">Back to Main Menu</a>
+        <h2>Child Management</h2>
+        <button onclick="showAddChildModal()">Add New Child</button>
+        <div id="childList"></div>
+    </div>
+
+    <!-- Add Child Modal -->
+    <div id="addChildModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideAddChildModal()">&times;</span>
+            <h3>Add New Child</h3>
+            <select id="classroomSelector"></select>
+            <input type="text" id="childFirstName" placeholder="First Name">
+            <input type="text" id="childLastName" placeholder="Last Name">
+            <input type="number" id="childAge" placeholder="Age">
+            <button onclick="addChild()">Add Child</button>
+        </div>
+    </div>
+
+    <!-- Edit Child Modal -->
+    <div id="editChildModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideEditChildModal()">&times;</span>
+            <h3>Edit Child</h3>
+            <input type="hidden" id="editChildId">
+            <select id="editClassroomSelector"></select>
+            <input type="text" id="editChildFirstName" placeholder="First Name">
+            <input type="text" id="editChildLastName" placeholder="Last Name">
+            <input type="number" id="editChildAge" placeholder="Age">
+            <button onclick="editChild()">Save Changes</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!sessionStorage.getItem('sessionToken')) {
+                window.location.href = 'login.html';
+            } else {
+                fetchClassrooms().then(fetchChildren);
+            }
+        });
+
+        async function fetchClassrooms() {
+            const response = await fetch('/api/classroom', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                }
+            });
+            const classrooms = await response.json();
+            populateClassroomSelectors(classrooms);
+        }
+
+        function populateClassroomSelectors(classrooms) {
+            const classroomSelector = document.getElementById('classroomSelector');
+            const editClassroomSelector = document.getElementById('editClassroomSelector');
+            classrooms.forEach(classroom => {
+                const option = new Option(classroom.name, classroom.id);
+                classroomSelector.appendChild(option.cloneNode(true));
+                editClassroomSelector.appendChild(option.cloneNode(true));
+            });
+        }
+
+        async function fetchChildren() {
+            const response = await fetch('/api/child', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                }
+            });
+            const children = await response.json();
+            displayChildren(children);
+        }
+
+        function displayChildren(children) {
+            const list = document.getElementById('childList');
+            list.innerHTML = '';
+            children.forEach(child => {
+                const classroomOption = document.querySelector(`#classroomSelector option[value="${child.room_id}"]`);
+                const classroomName = classroomOption ? classroomOption.text : 'Unknown Classroom';
+                const item = document.createElement('div');
+                item.innerHTML = `
+                    <span>${child.firstname} ${child.lastname} (Age: ${child.age}, Classroom: ${classroomName})</span>
+                    <button onclick="deleteChild('${child.id}')">Delete</button>
+                    <button onclick="showEditChildModal('${child.id}', '${child.room_id}', '${child.firstname}', '${child.lastname}', '${child.age}')">Edit</button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function addChild() {
+            const firstname = document.getElementById('childFirstName').value;
+            const lastname = document.getElementById('childLastName').value;
+            const age = document.getElementById('childAge').value;
+            const roomId = document.getElementById('classroomSelector').value;
+            await fetch('/api/child', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                },
+                body: JSON.stringify({ firstname, lastname, age, room_id: roomId })
+            });
+            fetchChildren();
+            hideAddChildModal();
+        }
+
+        async function deleteChild(id) {
+            await fetch(`/api/child/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                }
+            });
+            fetchChildren();
+        }
+
+        async function editChild() {
+            const id = document.getElementById('editChildId').value;
+            const firstname = document.getElementById('editChildFirstName').value;
+            const lastname = document.getElementById('editChildLastName').value;
+            const age = document.getElementById('editChildAge').value;
+            const roomId = document.getElementById('editClassroomSelector').value;
+            await fetch(`/api/child/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                },
+                body: JSON.stringify({ firstname, lastname, age, room_id: roomId })
+            });
+            fetchChildren();
+            hideEditChildModal();
+        }
+
+        function showAddChildModal() {
+            document.getElementById('addChildModal').style.display = 'block';
+        }
+
+        function hideAddChildModal() {
+            document.getElementById('addChildModal').style.display = 'none';
+            document.getElementById('childFirstName').value = '';
+            document.getElementById('childLastName').value = '';
+            document.getElementById('childAge').value = '';
+        }
+
+        function showEditChildModal(id, roomId, firstname, lastname, age) {
+            document.getElementById('editChildId').value = id;
+            document.getElementById('editClassroomSelector').value = roomId;
+            document.getElementById('editChildFirstName').value = firstname;
+            document.getElementById('editChildLastName').value = lastname;
+            document.getElementById('editChildAge').value = age;
+            document.getElementById('editChildModal').style.display = 'block';
+        }
+
+        function hideEditChildModal() {
+            document.getElementById('editChildModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

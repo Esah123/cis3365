@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Management</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <a href="main.html" class="back-button">Back to Main Menu</a>
+        <h2>Classroom Management</h2>
+        <button onclick="showAddClassroomModal()">Add New Classroom</button>
+        <div id="classroomList"></div>
+    </div>
+
+    <!-- Add Classroom Modal -->
+    <div id="addClassroomModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideAddClassroomModal()">&times;</span>
+            <h3>Add New Classroom</h3>
+            <select id="facilitySelector"></select>
+            <input type="text" id="classroomName" placeholder="Classroom Name">
+            <button onclick="addClassroom()">Add Classroom</button>
+        </div>
+    </div>
+
+    <!-- Edit Classroom Modal -->
+    <div id="editClassroomModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideEditClassroomModal()">&times;</span>
+            <h3>Edit Classroom</h3>
+            <input type="hidden" id="editClassroomId">
+            <select id="editFacilitySelector"></select>
+            <input type="text" id="editClassroomName" placeholder="Classroom Name">
+            <button onclick="editClassroom()">Save Changes</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!sessionStorage.getItem('sessionToken')) {
+                window.location.href = 'index.html'; // Redirect to login if no token found
+            } else {
+                fetchFacilitiesAndClassrooms();
+            }
+        });
+
+        async function fetchFacilitiesAndClassrooms() {
+            try {
+                const facilitiesResponse = await fetch('/api/facility', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    }
+                });
+                if (!facilitiesResponse.ok) throw new Error('Failed to fetch facilities');
+                const facilities = await facilitiesResponse.json();
+                populateFacilitySelectors(facilities);
+                // Assuming classrooms are fetched in a separate request or included in the facilities response
+                fetchClassrooms();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function populateFacilitySelectors(facilities) {
+            const facilitySelector = document.getElementById('facilitySelector');
+            const editFacilitySelector = document.getElementById('editFacilitySelector');
+            facilities.forEach(facility => {
+                const option = new Option(facility.name, facility.id);
+                facilitySelector.appendChild(option.cloneNode(true));
+                editFacilitySelector.appendChild(option.cloneNode(true));
+            });
+        }
+
+        async function fetchClassrooms() {
+            try {
+                const response = await fetch('/api/classroom', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    }
+                });
+                if (!response.ok) throw new Error('Failed to fetch classrooms');
+                const classrooms = await response.json();
+                displayClassrooms(classrooms);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function displayClassrooms(classrooms) {
+            const list = document.getElementById('classroomList');
+            list.innerHTML = '';
+            classrooms.forEach(classroom => {
+                const facilityOption = document.querySelector(`#facilitySelector option[value="${classroom.facility_id}"]`);
+                const facilityName = facilityOption ? facilityOption.text : 'Unknown Facility';
+                const item = document.createElement('div');
+                item.innerHTML = `
+                    <span>${classroom.name} (Facility: ${facilityName})</span>
+                    <button onclick="deleteClassroom('${classroom.id}')">Delete</button>
+                    <button onclick="showEditClassroomModal('${classroom.id}', '${classroom.facility_id}', '${classroom.name}')">Edit</button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function addClassroom() {
+            const name = document.getElementById('classroomName').value;
+            const facilityId = document.getElementById('facilitySelector').value;
+            try {
+                await fetch('/api/classroom', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    },
+                    body: JSON.stringify({ name, facility_id: facilityId })
+                });
+                fetchClassrooms();
+                hideAddClassroomModal();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function deleteClassroom(id) {
+            try {
+                await fetch(`/api/classroom/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    }
+                });
+                fetchClassrooms();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function editClassroom() {
+            const id = document.getElementById('editClassroomId').value;
+            const name = document.getElementById('editClassroomName').value;
+            const facilityId = document.getElementById('editFacilitySelector').value;
+            try {
+                await fetch(`/api/classroom/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionStorage.getItem('sessionToken')
+                    },
+                    body: JSON.stringify({ id, name, facilityId })
+                });
+                fetchClassrooms();
+                hideEditClassroomModal();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function showAddClassroomModal() {
+            document.getElementById('addClassroomModal').style.display = 'block';
+        }
+
+        function hideAddClassroomModal() {
+            document.getElementById('addClassroomModal').style.display = 'none';
+            document.getElementById('classroomName').value = ''; // Reset classroom name input
+        }
+
+        function showEditClassroomModal(id, facilityId, name) {
+            document.getElementById('editClassroomId').value = id;
+            document.getElementById('editFacilitySelector').value = facilityId;
+            document.getElementById('editClassroomName').value = name;
+            document.getElementById('editClassroomModal').style.display = 'block';
+        }
+
+        function hideEditClassroomModal() {
+            document.getElementById('editClassroomModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
